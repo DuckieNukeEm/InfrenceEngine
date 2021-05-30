@@ -5,33 +5,47 @@ from typing import Union
 import datatable as dt
 
 
+
 def flag_via_sd(df: Union[pd.DataFrame, dt.datatable]):
     pass
 
+def flag_sd_pd(df: pd.Dataframe, sd: float = 1.96, vars: list = [], **kwargs) -> pd.DataFrame:
+    """flaggs records that fall out of range for an SD
 
-def flag_sd_dt(df: df.datatable, sd: float = 1.96, vars: list = []) -> df.datatable:
-    """a function that calculates standard deviations across
+    Args:
+        df (pd.Dataframe):  input dataset
+        sd (float): standard deviations out to flag as outliers (two sided)
+                    (default: 1.96)
+        vars (list of str or ints): list of variables to use to calculate
+                                    standard deviations against
+
+    Returns:
+        pd.DataFrame: [description]
+    """
+    
+
+
+def flag_sd_dt(df: df.datatable, sd: float = 1.96, vars: list = [], **kwargs):
+        """a function that calculates standard deviations across
 
     Arguments:
-        df {datatable}  --   input datatable with variables to filter out
-
-    Keyword Arguments:
-        sd {float}  --  standard deviations out to flag as outliers (two sided)
+        df (datatable): input datatable with variables to filter out
+        sd (float): standard deviations out to flag as outliers (two sided)
                         (default: 1.96)
-        vars {list of str or ints}  --  list of variables to use to calculate
-                                        SD against. If it's a list of str, it
-                                        will try to match the strings to var
-                                        names, if it's a list of ints, will
-                                        use the positional arguemnts.
+        vars (list of str or ints): list of variables to use to calculate
+                                    standard deviations against
 
     Raises:
         None
 
     Returns:
-        datatable datatabke
+        datatable Frame that has a new (or overwritten) variables called
+        outlier. It's indicates the number of variables that a specific
+        record  was beyond the STD of the entire variable. The number can
+        range from 0 to n, the number of variables in vars.
     
     Details:
-        This is the flag_sd varition for us with data table. 
+        This uses the dataframe framework to do the calculations
 
         It will ittertate through the list of vars, and will calculate the SD
         of each variables, 
