@@ -1,19 +1,17 @@
-
 import pandas as pd
 from typing import Union
 import util as U
 
 import datatable as dt
-.pre-commit-config.yaml
+
 
 def flag_via_sd(Df: Union[pd.DataFrame, dt.datatable]):
     pass
 
 
-def flag_sd_pandas(Df: pd.Dataframe,
-                   STD: float = 1.96,
-                   outlier_vars: list = [],
-                   **kwargs) -> pd.DataFrame:
+def flag_sd_pandas(
+    Df: pd.Dataframe, STD: float = 1.96, outlier_vars: list = [], **kwargs
+) -> pd.DataFrame:
     """flaggs records that fall out of range for an SD
 
     Args:
@@ -30,14 +28,14 @@ def flag_sd_pandas(Df: pd.Dataframe,
         pd.DataFrame: [description]
     """
     # basic checks
-    assert U.typeof(Df) in ['DataFrame', 'Series'], \
-        "the object passed to flag_sd is not a pandas Dataframe"
+    assert U.typeof(Df) in [
+        "DataFrame",
+        "Series",
+    ], "the object passed to flag_sd is not a pandas Dataframe"
 
-    assert U.typeof(outlier_vars) == 'List', \
-        "the variable Vars is not a list"
+    assert U.typeof(outlier_vars) == "List", "the variable Vars is not a list"
 
-    assert U.typeof(STD) == 'Float', \
-        "the variable sd is not of type float"
+    assert U.typeof(STD) == "Float", "the variable sd is not of type float"
 
     STD = abs(STD)
 
@@ -67,18 +65,18 @@ def flag_sd_pandas(Df: pd.Dataframe,
     sd_vals = Df[outlier_vars].std()
     mean_vals = Df[outlier_vars].mean()
 
-    lower_bound = mean_vals - STD*sd_vals
-    upper_bound = mean_vals + STD*sd_vals
+    lower_bound = mean_vals - STD * sd_vals
+    upper_bound = mean_vals + STD * sd_vals
 
-    Outliers = \
-        ((Df[outlier_vars] > upper_bound) |
-         (Df[outlier_vars] < lower_bound)).\
-        astype(int).\
-        sum(axis=1)
+    Outliers = (
+        ((Df[outlier_vars] > upper_bound) | (Df[outlier_vars] < lower_bound))
+        .astype(int)
+        .sum(axis=1)
+    )
 
-    Df['Outlier'] = Outliers
+    Df["Outlier"] = Outliers
 
-    return(Df)
+    return Df
 
 
 def flag_sd_dt(Df: dt.datatable, sd: float = 1.96, vars: list = [], **kwargs):
@@ -109,4 +107,3 @@ def flag_sd_dt(Df: dt.datatable, sd: float = 1.96, vars: list = [], **kwargs):
     """
 
     pass
-    ?test
