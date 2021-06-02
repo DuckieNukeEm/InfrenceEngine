@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from typing import Union
 import util as U
 
@@ -9,23 +10,39 @@ def flag_via_sd(Df: Union[pd.DataFrame, dt.datatable]):
     pass
 
 
-def flag_sd_pandas(
-    Df: pd.Dataframe, STD: float = 1.96, outlier_vars: list = [], **kwargs
+def flag_outliers_sd_pandas(
+    Df: pd.Dataframe,
+    STD: float = 1.96,
+    outlier_vars: list = [],
+    test_group: dict = {},
+    **kwargs
 ) -> pd.DataFrame:
     """flaggs records that fall out of range for an SD
 
     Args:
         Df (pd.Dataframe):  input dataset
-        STD (float): standard deviations out to flag as outliers (two sided)
-                    (default: 1.96)
+        STD (float):    standard deviations out to flag as outliers (two sided)
+                        (default: 1.96)
         outlier_vars (list of str or ints): list of variables to check for
                                             outliers using number of standard
                                             devaitions (STD) from the mean.
                                             A empty list uses the entire
                                             data frame.
-                                    (default: [])
+                                            (default: [])
+        test_group (dict):  a dictionary containing key-value pairs of:
+                                key: the name of the variable that contains
+                                      filter
+                                value: the value of the group to get the STD
+                                       limits on and apply to their couterpart
     Returns:
-        pd.DataFrame: [description]
+        pd.DataFrame: same as before, except with a new column: 'Outlier'
+
+    Details:
+         This uses the pandas dataframe framework to do the calculations
+
+        It will ittertate through the list of vars, and will calculate the SD
+        of each variables,
+
     """
     # basic checks
     assert U.typeof(Df) in [
@@ -36,6 +53,8 @@ def flag_sd_pandas(
     assert U.typeof(outlier_vars) == "List", "the variable Vars is not a list"
 
     assert U.typeof(STD) == "Float", "the variable sd is not of type float"
+
+    assert U.typeof(test_group) == "Dict", "the variable test_group needs to be a dict"
 
     STD = abs(STD)
 
@@ -58,12 +77,34 @@ def flag_sd_pandas(
     if int_flag_check > 0:
         outlier_vars = Df.columns[outlier_vars]
 
+    if len(test_group) == 1:
+        for key, value in test_group.items():
+            assert key in list(Df.columns), "Key of tet_group needs to be a column name"
+            assert (
+                value in Df[key].values
+            ), "Value of test_group needs to be an element in the Data Frame"
+            test_col = key
+            test_value = value
+
+    elif len(test_group) > 1:
+        raise KeyError(
+            "More keys exists than can be handeld in test_group. Plan to support multiple SD in the future"
+        )
+    else:
+        pass
+
     # making sure the set of variables is unique
     outlier_vars = set(outlier_vars)
 
     # lets do this!
-    sd_vals = Df[outlier_vars].std()
-    mean_vals = Df[outlier_vars].mean()
+
+    if len(test_group) == 1:
+        sd_vals = Df.loc[np.inId(Df[test_col], test_value), outlier_vars].std()
+        mean_vals = Df.loc[np.inId(Df[test_col], test_value), outlier_vars].mean()
+
+    else:
+        sd_vals = Df[outlier_vars].std()
+        mean_vals = Df[outlier_vars].mean()
 
     lower_bound = mean_vals - STD * sd_vals
     upper_bound = mean_vals + STD * sd_vals
@@ -79,11 +120,11 @@ def flag_sd_pandas(
     return Df
 
 
-def flag_sd_dt(Df: dt.datatable, sd: float = 1.96, vars: list = [], **kwargs):
+def flag_outliers_sd(Df: dt.Frame, sd: float = 1.96, vars: list = [], **kwargs):
     """a function that calculates standard deviations across
 
     Arguments:
-        df (datatable): input datatable with variables to filter out
+        df (datatable Frame): input datatable with variables to filter out
         sd (float): standard deviations out to flag as outliers (two sided)
                         (default: 1.96)
         vars (list of str or ints): list of variables to use to calculate
