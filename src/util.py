@@ -1,6 +1,12 @@
 from pandas import DataFrame, Series
 
-typeof(Obj, simple: bool = True)->str:
+
+def v_print(test: bool = False, *args):
+    if test is True:
+        print(*args)
+
+
+def typeof(Obj, simple: bool = True) -> str:
     """retuns what the item is in as astring
 
     Argumnet:
@@ -12,22 +18,26 @@ typeof(Obj, simple: bool = True)->str:
     """
     if isinstance(Obj, str):
         if simple:
-            return('Str')
+            return "Str"
         else:
-            #here will test if it's a file,or a folder
+            # here will test if it's a file,or a folder
             pass
     elif isinstance(Obj, int):
-        return('Int')
+        return "Int"
+    elif isinstance(Obj, float):
+        return "Float"
+    elif isinstance(Obj, complex):
+        return "Complex"
     elif isinstance(Obj, dict):
-        return('Dict')
+        return "Dict"
     elif isinstance(Obj, list):
-        return('List')
+        return "List"
     elif isinstance(Obj, bool):
-        return('Bool')
+        return "Bool"
     elif isinstance(Obj, DataFrame):
-        return('DataFrame')
+        return "DataFrame"
     elif isinstance(Obj, Series):
         if simple:
-            return('DataFrame')
+            return "DataFrame"
         else:
-            return('Series')
+            return "Series"

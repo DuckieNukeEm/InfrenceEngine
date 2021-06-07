@@ -6,15 +6,16 @@ import util as U
 import datatable as dt
 
 
-def flag_via_sd(Df: Union[pd.DataFrame, dt.datatable]):
+def flag_via_sd(Df: Union[pd.DataFrame, dt.Frame]):
     pass
 
 
 def flag_outliers_sd_pandas(
-    Df: pd.Dataframe,
+    Df: pd.DataFrame,
     STD: float = 1.96,
     outlier_vars: list = [],
     test_group: dict = {},
+    v: bool = False,
     **kwargs
 ) -> pd.DataFrame:
     """flaggs records that fall out of range for an SD
@@ -34,6 +35,8 @@ def flag_outliers_sd_pandas(
                                       filter
                                 value: the value of the group to get the STD
                                        limits on and apply to their couterpart
+        v (bool): have it natter at you while it runs
+                        (default: False)
     Returns:
         pd.DataFrame: same as before, except with a new column: 'Outlier'
 
@@ -50,9 +53,9 @@ def flag_outliers_sd_pandas(
         "Series",
     ], "the object passed to flag_sd is not a pandas Dataframe"
 
-    assert U.typeof(outlier_vars) == "List", "the variable Vars is not a list"
+    assert U.typeof(outlier_vars) == "List", "the variable outlier_vars is not a list"
 
-    assert U.typeof(STD) == "Float", "the variable sd is not of type float"
+    assert U.typeof(STD) == "Float", "the variable STD is not of type Float"
 
     assert U.typeof(test_group) == "Dict", "the variable test_group needs to be a dict"
 
@@ -71,15 +74,23 @@ def flag_outliers_sd_pandas(
         else:
             raise TypeError("Can not identify the elements in vars")
 
-    if int_flag_check != 0 and int_flag_check != len(vars):
+    if int_flag_check != 0 and int_flag_check != len(outlier_vars):
         raise TypeError("the elements of the list Vars are of mixed type")
+
+    if int_flag_check == len(outlier_vars):
+        if max(outlier_vars) >= Df.shape[1]:
+            raise AssertionError(
+                "Max value of outlier_vars exceeds the dataframe shape"
+            )
 
     if int_flag_check > 0:
         outlier_vars = Df.columns[outlier_vars]
 
     if len(test_group) == 1:
         for key, value in test_group.items():
-            assert key in list(Df.columns), "Key of tet_group needs to be a column name"
+            assert key in list(
+                Df.columns
+            ), "Key of test_group needs to be a column name"
             assert (
                 value in Df[key].values
             ), "Value of test_group needs to be an element in the Data Frame"
@@ -99,15 +110,21 @@ def flag_outliers_sd_pandas(
     # lets do this!
 
     if len(test_group) == 1:
-        sd_vals = Df.loc[np.inId(Df[test_col], test_value), outlier_vars].std()
-        mean_vals = Df.loc[np.inId(Df[test_col], test_value), outlier_vars].mean()
+        sd_vals = Df.loc[np.in1d(Df[test_col], test_value), outlier_vars].std()
+        mean_vals = Df.loc[np.in1d(Df[test_col], test_value), outlier_vars].mean()
 
     else:
         sd_vals = Df[outlier_vars].std()
         mean_vals = Df[outlier_vars].mean()
 
+    U.v_print(v, "STD:", sd_vals)
+    U.v_print(v, "Means:", mean_vals)
+
     lower_bound = mean_vals - STD * sd_vals
     upper_bound = mean_vals + STD * sd_vals
+
+    U.v_print(v, "Lower Bounds:", lower_bound)
+    U.v_print(v, "Upper Bounds:", upper_bound)
 
     Outliers = (
         ((Df[outlier_vars] > upper_bound) | (Df[outlier_vars] < lower_bound))
