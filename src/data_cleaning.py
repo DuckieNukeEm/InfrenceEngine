@@ -5,11 +5,10 @@ from datatable import f
 import util as U
 
 import datatable as dt
-
+ 
 
 def flag_via_sd(Df: Union[pd.DataFrame, dt.Frame]):
     pass
-
 
 def flag_outliers_sd_pandas(
     Df: pd.DataFrame,
@@ -28,8 +27,8 @@ def flag_outliers_sd_pandas(
         outlier_vars (list of str or ints): list of variables to check for
                                             outliers using number of standard
                                             devaitions (STD) from the mean.
-                                            A empty list uses the entire
-                                            data frame.
+                                            A empty list will default to uses
+                                            all numeric variables in Df.
                                             (default: [])
         test_group (dict):  a dictionary containing key-value pairs of:
                                 key: the name of the variable that contains
@@ -42,10 +41,28 @@ def flag_outliers_sd_pandas(
         pd.DataFrame: same as before, except with a new column: 'Outlier'
 
     Details:
-         This uses the pandas dataframe framework to do the calculations
+        Before anything happens, a new variables will be added to the end of
+        the data frame called 'Outlier' and set to zero. 
+        
+        For each variables in outlier_vars (if outlier_vars is an empty list,  
+        it will use all numeric variables in Df) a standard deviation and mean 
+        will be calculated. 
+        
+        Then a lower bound and upper bound will be calculated as:
+            
+            mean +/- STD * std
+            
+        Each value in that variable will be compared, if it exceeds those ranges
+        (greater then the upper bound or less than the lower bound) the Outlier
+        variable for that record will get an additional +1 to it.
+        
+        Then it will move to the next variable in outlier_vars, until that list 
+        is exhausted. 
+        
+        in essence, the new variable 'Outlier' will indicate how many variables
+        that row has been an outlier.
 
-        It will ittertate through the list of vars, and will calculate the SD
-        of each variables,
+        This version of the function is specifically tailored to pandas Dataframes
 
     """
     # basic checks
@@ -122,6 +139,7 @@ def flag_outliers_sd_pandas(
     U.v_print(v, "Means:", mean_vals)
 
     # walking through and replacing nans with infs
+    # TODO Replace with a function
     vars_to_remove = []
     for col in test_col:
         if sd_vals[col] == np.nan:
@@ -265,7 +283,28 @@ def flag_outliers_sd(
     for col in outlier_vars:
         lower_bound[col] = mean_vals[0, col] - STD * sd_vals[0, col]
         upper_bound[col] = mean_vals[0, col] + STD * sd_vals[0, col]
+    
+    # walking through and replacing nans with infs
+    
+    # TODO Replace with a function
+    vars_to_remove = []
+    for col in test_col:
+        if sd_vals[0, col] == np.nan:
+            U.v_print(
+                v,
+                "The variable - %s - has an STD of nan: Removing from outlier_flags"
+                % (col),
+            )
+            vars_to_remove.append(col)
 
+        if mean_vals[0, col] == np.nan or abs(mean_vals[0, col]) == np.inf:
+            U.v_print(
+                v,
+                "The variables - %s - has it has a mean of nan or inf"
+                % (col),
+            )
+            vars_to_remove.append(col)
+            
     U.v_print(v, "Lower Bounds:", lower_bound)
     U.v_print(v, "Upper Bounds:", upper_bound)
 
