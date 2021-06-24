@@ -5,10 +5,11 @@ from datatable import f
 import util as U
 
 import datatable as dt
- 
+
 
 def flag_via_sd(Df: Union[pd.DataFrame, dt.Frame]):
     pass
+
 
 def flag_outliers_sd_pandas(
     Df: pd.DataFrame,
@@ -42,23 +43,23 @@ def flag_outliers_sd_pandas(
 
     Details:
         Before anything happens, a new variables will be added to the end of
-        the data frame called 'Outlier' and set to zero. 
-        
-        For each variables in outlier_vars (if outlier_vars is an empty list,  
-        it will use all numeric variables in Df) a standard deviation and mean 
-        will be calculated. 
-        
+        the data frame called 'Outlier' and set to zero.
+
+        For each variables in outlier_vars (if outlier_vars is an empty list,
+        it will use all numeric variables in Df) a standard deviation and mean
+        will be calculated.
+
         Then a lower bound and upper bound will be calculated as:
-            
+
             mean +/- STD * std
-            
+
         Each value in that variable will be compared, if it exceeds those ranges
         (greater then the upper bound or less than the lower bound) the Outlier
         variable for that record will get an additional +1 to it.
-        
-        Then it will move to the next variable in outlier_vars, until that list 
-        is exhausted. 
-        
+
+        Then it will move to the next variable in outlier_vars, until that list
+        is exhausted.
+
         in essence, the new variable 'Outlier' will indicate how many variables
         that row has been an outlier.
 
@@ -138,11 +139,15 @@ def flag_outliers_sd_pandas(
     U.v_print(v, "STD:", sd_vals)
     U.v_print(v, "Means:", mean_vals)
 
+    outlier_vars = list(sd_vals.index)
     # walking through and replacing nans with infs
     # TODO Replace with a function
     vars_to_remove = []
-    for col in test_col:
-        if sd_vals[col] == np.nan:
+    for col in outlier_vars:
+        print(col)
+        print(sd_vals)
+        print(sd_vals[col])
+        if np.isnan(sd_vals[col]):
             U.v_print(
                 v,
                 "the following variable as it has an STD of nan: %s removing from STD flag"
@@ -150,11 +155,10 @@ def flag_outliers_sd_pandas(
             )
             vars_to_remove.append(col)
 
-        if mean_vals[col] == np.nan or abs(mean_vals[col]) == np.inf:
+        if np.isnan(mean_vals[col]) or np.isinf(mean_vals[col]):
             U.v_print(
                 v,
-                "Removing the following variables as it has a mean of nan or inf: %s"
-                % (col),
+                "Removing the following variables has a mean of nan or inf: %s" % (col),
             )
             vars_to_remove.append(col)
 
@@ -179,7 +183,7 @@ def flag_outliers_sd_pandas(
     return Df
 
 
-def flag_outliers_sd(
+def flag_outliers_sd_datatable(
     Df: dt.Frame,
     STD: float = 1.96,
     outlier_vars: list = [],
@@ -250,9 +254,9 @@ def flag_outliers_sd(
     if len(test_group) == 1:
         for key, value in test_group.items():
             assert key in list(Df.names), "Key of test_group needs to be a column name"
-            assert any(
-                Df[f[key] == value, :]
-            ), "Value of test_group needs to be an element in the Data Frame"
+            assert (
+                Df[f[key] == value, :].shape[0] > 0
+            ), "Value of test_group needs to be an element in the datatable Frame"
             test_col = key
             test_value = value
 
@@ -263,11 +267,12 @@ def flag_outliers_sd(
     else:
         pass
 
-    outlier_vars = set(outlier_vars)
+    outlier_vars = list(set(outlier_vars))
 
     # lets do this!
 
     if len(test_group) == 1:
+        print("Going through test group")
         sd_vals = Df[f[test_col] == test_value, outlier_vars].sd()
         mean_vals = Df[f[test_col] == test_value, outlier_vars].mean()
 
@@ -278,18 +283,13 @@ def flag_outliers_sd(
     U.v_print(v, "STD:", sd_vals)
     U.v_print(v, "Means:", mean_vals)
 
-    lower_bound = {}
-    upper_bound = {}
-    for col in outlier_vars:
-        lower_bound[col] = mean_vals[0, col] - STD * sd_vals[0, col]
-        upper_bound[col] = mean_vals[0, col] + STD * sd_vals[0, col]
-    
     # walking through and replacing nans with infs
-    
+
     # TODO Replace with a function
+    outlier_vars = set(list(sd_vals.names))
     vars_to_remove = []
-    for col in test_col:
-        if sd_vals[0, col] == np.nan:
+    for col in outlier_vars:
+        if not dt.math.isfinite(sd_vals[0, col]):
             U.v_print(
                 v,
                 "The variable - %s - has an STD of nan: Removing from outlier_flags"
@@ -297,27 +297,33 @@ def flag_outliers_sd(
             )
             vars_to_remove.append(col)
 
-        if mean_vals[0, col] == np.nan or abs(mean_vals[0, col]) == np.inf:
+        if not dt.math.isfinite(mean_vals[0, col]):
             U.v_print(
                 v,
-                "The variables - %s - has it has a mean of nan or inf"
-                % (col),
+                "The variables - %s - has it has a mean of nan or inf" % (col),
             )
             vars_to_remove.append(col)
-            
+
+    outlier_vars = [x for x in outlier_vars if x not in set(vars_to_remove)]
+
+    lower_bound = {}
+    upper_bound = {}
+
+    for col in outlier_vars:
+        lower_bound[col] = mean_vals[0, col] - STD * sd_vals[0, col]
+        upper_bound[col] = mean_vals[0, col] + STD * sd_vals[0, col]
+    print(lower_bound)
+    print(upper_bound)
     U.v_print(v, "Lower Bounds:", lower_bound)
     U.v_print(v, "Upper Bounds:", upper_bound)
 
-    Df = Df[:, {"Outlier": 0}]
+    # making a copy, may need to revert this if it breaks the sole reason why I'm using datatable
+    Df_out = Df
+    Df_out["Outlier"] = 0
     for col in outlier_vars:
-        Df[
-            :,
-            {
-                "Outlier": dt.ifelse(
-                    f[col] < lower_bound[col], 1, f[col] > upper_bound[col], 1, 0
-                )
-                + f.Outlier
-            },
+        Df_out[
+            (f[col] < lower_bound[col]) | (f[col] > upper_bound[col]),
+            dt.update(Outlier=f.Outlier + 1),
         ]
 
-    return Df
+    return Df_out

@@ -1,4 +1,5 @@
 from pandas import DataFrame, Series
+from datatable import Frame
 
 
 def v_print(test: bool = False, *args):
@@ -41,3 +42,7 @@ def typeof(Obj, simple: bool = True) -> str:
             return "DataFrame"
         else:
             return "Series"
+    elif isinstance(Obj, Frame):
+        return "Frame"
+    else:
+        return "Other"
