@@ -1,28 +1,15 @@
 from pandas import DataFrame, Series
 from datatable import Frame, f
+from dataframe import make_test_dataframe
 import pytest
 import sys
 
 sys.path.insert(0, "../src")
 import data_cleaning as dc
 
-# testing flag_outliers_sd_pandas
 
-age_list = [
-    ["Bob", 1901, 180, "Tokyo"],
-    ["Carl", 1993, 92, "Edo"],
-    ["Derrel", 1954, 170, "Osaka"],
-    ["Ed", 1953, 185, "Tokyo"],
-    ["Frank", 1954, 178, "Tokyo"],
-    ["Garth", 1953, 179, "Edo"],
-    ["Hank", 1953, 212, "Tokyo"],
-    ["Igor", 1952, 149, "Osaka"],
-]
-
-# creating a pandas dataframe
-test_df = DataFrame(age_list, columns=["Name", "DoB", "Hieght", "City"])
-test_dt = Frame(test_df)
 # Creating common params
+use_columns = ["Name", "DoB", "Hieght", "City"]
 STD_P = 2.00
 OL_null_p = []
 OL_nm_p = ["DoB"]
@@ -30,8 +17,7 @@ OL_pos_p = [1]
 TG_null_p = {}
 TG_p = {"City": "Tokyo"}
 
-dc.flag_outliers_sd_pandas(Df=test_df, STD=1.96, outlier_vars=[], test_group={})
-
+test_df = make_test_dataframe(cols=use_columns)
 # #############################################################################
 # #############################################################################
 # flag_outlier_sd_pandas
@@ -152,6 +138,7 @@ def test_flag_outliers_sd_pandas_value_not_in_list():
 
 
 def test_flag_outliers_all_vars_correct():
+    test_df = make_test_dataframe(cols=use_columns)
     return_val = dc.flag_outliers_sd_pandas(
         Df=test_df, STD=STD_P, outlier_vars=OL_null_p, test_group=TG_null_p
     )
@@ -162,6 +149,7 @@ def test_flag_outliers_all_vars_correct():
 
 
 def test_flag_outliers_sel_vars_correct():
+    test_df = make_test_dataframe(cols=use_columns)
     return_val = dc.flag_outliers_sd_pandas(
         Df=test_df, STD=STD_P, outlier_vars=OL_nm_p, test_group=TG_null_p
     )
@@ -172,6 +160,7 @@ def test_flag_outliers_sel_vars_correct():
 
 
 def test_flag_outliers_all_vars_test_groupcorrect():
+    test_df = make_test_dataframe(cols=use_columns)
     return_val = dc.flag_outliers_sd_pandas(
         Df=test_df, STD=STD_P, outlier_vars=OL_null_p, test_group=TG_p
     )
@@ -183,6 +172,7 @@ def test_flag_outliers_all_vars_test_groupcorrect():
 
 
 def test_flag_outliers_sel_vars_test_groupcorrect():
+    test_df = make_test_dataframe(cols=use_columns)
     return_val = dc.flag_outliers_sd_pandas(
         Df=test_df, STD=STD_P, outlier_vars=OL_nm_p, test_group=TG_p
     )
@@ -214,7 +204,7 @@ def test_flag_outliers_sd_datatable_df_assert():
 
 
 def test_flag_outliers_sd_datatable_STD_assert():
-    test_dt = Frame(test_df)
+    test_dt = Frame(make_test_dataframe(cols=use_columns))
     with pytest.raises(AssertionError) as err:
         dc.flag_outliers_sd_datatable(
             Df=test_dt, STD="A", outlier_vars=OL_null_p, test_group=TG_null_p
@@ -223,7 +213,7 @@ def test_flag_outliers_sd_datatable_STD_assert():
 
 
 def test_flag_outliers_sd_datatable_outlier_Var_assert():
-    test_dt = Frame(test_df)
+    test_dt = Frame(make_test_dataframe(cols=use_columns))
     with pytest.raises(AssertionError) as err:
         dc.flag_outliers_sd_datatable(
             Df=test_dt[:, f.DoB], STD=STD_P, outlier_vars=1, test_group=TG_null_p
@@ -232,7 +222,7 @@ def test_flag_outliers_sd_datatable_outlier_Var_assert():
 
 
 def test_flag_outliers_sd_datatable_test_group_assert():
-    test_dt = Frame(test_df)
+    test_dt = Frame(make_test_dataframe(cols=use_columns))
     with pytest.raises(AssertionError) as err:
         dc.flag_outliers_sd_datatable(
             Df=test_dt, STD=STD_P, outlier_vars=OL_null_p, test_group="b"
@@ -246,7 +236,7 @@ def test_flag_outliers_sd_datatable_test_group_assert():
 
 
 def test_flag_outliers_sd_datatable_unkown_outlier_vars():
-    test_dt = Frame(test_df)
+    test_dt = Frame(make_test_dataframe(cols=use_columns))
     with pytest.raises(TypeError) as err:
         dc.flag_outliers_sd_datatable(
             Df=test_dt,
@@ -258,7 +248,7 @@ def test_flag_outliers_sd_datatable_unkown_outlier_vars():
 
 
 def test_flag_outliers_sd_datatable_mixed_outlier_vars():
-    test_dt = Frame(test_df)
+    test_dt = Frame(make_test_dataframe(cols=use_columns))
     with pytest.raises(TypeError) as err:
         dc.flag_outliers_sd_datatable(
             Df=test_dt, STD=STD_P, outlier_vars=["dob", 1], test_group=TG_null_p
@@ -267,7 +257,7 @@ def test_flag_outliers_sd_datatable_mixed_outlier_vars():
 
 
 def test_flag_outliers_sd_datatable_too_many_outlier_vars():
-    test_dt = Frame(test_df)
+    test_dt = Frame(make_test_dataframe(cols=use_columns))
     with pytest.raises(AssertionError) as err:
         dc.flag_outliers_sd_datatable(
             Df=test_dt, STD=STD_P, outlier_vars=[1, 2, 3, 4, 5], test_group=TG_null_p
@@ -276,7 +266,7 @@ def test_flag_outliers_sd_datatable_too_many_outlier_vars():
 
 
 def test_flag_outliers_sd_datatable_too_many_keys_test_group():
-    test_dt = Frame(test_df)
+    test_dt = Frame(make_test_dataframe(cols=use_columns))
     with pytest.raises(KeyError) as err:
         dc.flag_outliers_sd_datatable(
             Df=test_dt,
@@ -291,7 +281,7 @@ def test_flag_outliers_sd_datatable_too_many_keys_test_group():
 
 
 def test_flag_outliers_sd_datatable_key_not_in_list():
-    test_dt = Frame(test_df)
+    test_dt = Frame(make_test_dataframe(cols=use_columns))
     with pytest.raises(AssertionError) as err:
         dc.flag_outliers_sd_datatable(
             Df=test_dt,
@@ -303,7 +293,7 @@ def test_flag_outliers_sd_datatable_key_not_in_list():
 
 
 def test_flag_outliers_sd_datatable_value_not_in_list():
-    test_dt = Frame(test_df)
+    test_dt = Frame(make_test_dataframe(cols=use_columns))
     with pytest.raises(AssertionError) as err:
         dc.flag_outliers_sd_datatable(
             Df=test_dt,
@@ -322,7 +312,7 @@ def test_flag_outliers_sd_datatable_value_not_in_list():
 
 
 def test_flag_outliers_all_vars_correct_dt():
-    test_dt = Frame(test_df)
+    test_dt = Frame(make_test_dataframe(cols=use_columns))
     return_val = dc.flag_outliers_sd_datatable(
         Df=test_dt[:, 0:4], STD=STD_P, outlier_vars=OL_null_p, test_group=TG_null_p
     )
@@ -333,7 +323,7 @@ def test_flag_outliers_all_vars_correct_dt():
 
 
 def test_flag_outliers_sel_vars_correct_dt():
-    test_dt = Frame(test_df)
+    test_dt = Frame(make_test_dataframe(cols=use_columns))
     return_val = dc.flag_outliers_sd_datatable(
         Df=test_dt, STD=STD_P, outlier_vars=OL_nm_p, test_group=TG_null_p
     )
@@ -344,7 +334,7 @@ def test_flag_outliers_sel_vars_correct_dt():
 
 
 def test_flag_outliers_all_vars_test_groupcorrect_dt():
-    test_dt = Frame(test_df)
+    test_dt = Frame(make_test_dataframe(cols=use_columns))
     return_val = dc.flag_outliers_sd_datatable(
         Df=test_dt[:, 0:4], STD=STD_P, outlier_vars=OL_null_p, test_group=TG_p
     )
@@ -356,7 +346,7 @@ def test_flag_outliers_all_vars_test_groupcorrect_dt():
 
 
 def test_flag_outliers_sel_vars_test_groupcorrect_dt():
-    test_dt = Frame(test_df)
+    test_dt = Frame(make_test_dataframe(cols=use_columns))
     return_val = dc.flag_outliers_sd_datatable(
         Df=test_dt, STD=STD_P, outlier_vars=OL_nm_p, test_group=TG_p
     )

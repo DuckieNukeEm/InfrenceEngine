@@ -214,6 +214,28 @@ def flag_outliers_sd_datatable(
         datatable Frame: same as before, except with a new column: 'Outlier'
 
     Details:
+        Before anything happens, a new variables will be added to the end of
+        the data frame called 'Outlier' and set to zero.
+
+        For each variables in outlier_vars (if outlier_vars is an empty list,
+        it will use all numeric variables in Df) a standard deviation and mean
+        will be calculated.
+
+        Then a lower bound and upper bound will be calculated as:
+
+            mean +/- STD * std
+
+        Each value in that variable will be compared, if it exceeds those ranges
+        (greater then the upper bound or less than the lower bound) the Outlier
+        variable for that record will get an additional +1 to it.
+
+        Then it will move to the next variable in outlier_vars, until that list
+        is exhausted.
+
+        in essence, the new variable 'Outlier' will indicate how many variables
+        that row has been an outlier.
+
+        This version of the function is specifically tailored to datatable Frame
 
     """
     assert (
