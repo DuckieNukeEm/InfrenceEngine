@@ -24,7 +24,7 @@ def replace_nonnumeric(
         If it's any of them, it replaces that number with the replace_value. If it's
         none of them, just returns the value
     """
-    if Num is None or np.nan(Num) or np.inf(Num):
+    if Num is None or np.isnan(Num) or np.isinf(Num):
         return replace_value
     elif check_zero is True and Num == 0:
         return replace_value
@@ -32,7 +32,7 @@ def replace_nonnumeric(
         return Num
 
 
-def one_col_standardize(Data: Union[pd.Series, np.array]) -> np.array:
+def standardize(Data: Union[pd.Series, np.array]) -> np.array:
     """Will subtract the mean and divided by the std
 
     Arguments:
@@ -72,7 +72,7 @@ def one_col_standardize(Data: Union[pd.Series, np.array]) -> np.array:
     return sdz_data
 
 
-def clip(Data: np.Array, pct_lower: float = 0.001, pct_upper: float = 0.99):
+def clip_edges(Data: np.Array, pct_lower: float = 0.001, pct_upper: float = 0.99):
     """WIll clipp the upper % and lower % off of the index
 
     Arguments:
@@ -93,24 +93,125 @@ def clip(Data: np.Array, pct_lower: float = 0.001, pct_upper: float = 0.99):
     return Data_Clip
 
 
-def standardize():
-    """will standardize all columns selected"""
-    pass
+def data_frequency(Data: np.Array, Buckets: int = 10) -> tuple:
+    """will order the data into bins and provide a frequency of the data
+
+    Arguments:
+        Data {np.array} -- an input numpy array
+
+    Keyword Arguments:
+        Buckets {int} -- Number of buckets to sort the data into
+                         {default: 1}
+
+    returns:
+        tuple of numpy arrays
+            0: the frequency count of each bins
+            1: the percentile of eahc bin
+            2: the right limit of the bins
+
+    Details:
+        It will go through and will sort the data into approperate number of bins,
+        similar to what a histogram does, it will then do a culmative frequency on
+        the bins for an added bonus.
+    """
+    
+    percentile_bins = np.percentile(Data, np.linspace(0,100, Buckets))
+    # Truth be told, it's actually faster to us np.histogram than write your own 
+    observed_frequency, bins = (np.histogram(y_std, bins=percentile_bins))
+    cum_observed_frequency = np.cumsum(observed_frequency)
+    return(observed_frequency, percentile_bins, bins)
+    
+
+def expectation_of_distro(Data: np.array, cutoffs: np.array, distribution) -> tuple:
+    """will take an input and fit a distribution and take the expecation
+    
+    Arguments:
+            Data {np.array} -- data source to fit distirbution expectation_of_distro
+            cutoffs {np.array} -- the percentile cutoff points to measure against
+            distribution {str} -- the name of the distribtion to fit to. This must 
+                                   be a distribution name contained in scipy
+    
+    Returns:
+            tuple of two numpy arrays:
+                0: The expected frequency of the distribution from the Data
+                1: the CDF of the fitted distribution from the data
+    
+    Details:
+        For the Data set given, a distribution is "trained" on it, in that it will find
+        build a distribution with the same parameters as the Data set has. 
+        
+        It will then take the expectation of that distribution - IE what should the values
+        be per cutoff bucket IF the data was truly of that distribution
+    """
+    
+    # below is equivilant to scipy.stats.distribution
+    dist = getattr(scipy.stats, distribution)
+    
+    # fitting data 
+    param = dist.fit(Data)
+
+    # Get expected counts in percentile bins
+    # cdf of fitted sistrinution across bins
+    cdf_fitted = dist.cdf(cutoffs, *param)
+    expected_frequency = []
+    for i in range(len(cutoffs)-1):
+        expected_cdf_area = cdf_fitted[i+1] - cdf_fitted[i]
+        expected_frequency.append(expected_cdf_area)
+    
+    expected_frequency = np.array(expected_frequency) * len(Data)
+    return expected_frequency, cdf_fitter
 
 
-def bucketize(Data: np.Array, Bins: int = 10) -> np.array:
-    """will sort and bucket columns"""
-    pass
+def chi_square(observed_frequency: np.array, expected_frequency: np.array, cum_observed_frequency: np.array = np.array()) -> float:
+    """will calculate the chi-square between the Data_origin and Data_expected
+    
+    Arguments:
+        observed_frequency {np.array} -- the observed frequence from data 
+        expected_frequency {np.array} -- the expected frqeuency 
+
+    Keyword Arguments:
+        cum_observed_frequency {np.array} -- the cumultaive observed frequency. If an emtpy array
+                                             it will be calculated from the observed_frequency
+                                             {default: []}
+    Returns
+        float -- the chi-square statistic between the observed and expected frequency 
+        
+    Details 
+        This caculates the chi square frequency between the observed and expected frequency
+        by the following formula:
+            insert chi_square formula 
+    
+    """
+    cum_exp_frequency = np.cumsum(expected_frequency)
+    
+    if len(cum_obs_frequency) == 0:
+        cum_obs_frequency = np.cumsum(observed_frequency)
+        
+    chi_stat = sum(((cum_exp_frequency - cum_obs_frequency) ** 2) / cum_obs_frequency)
+    return(chi_stat)
 
 
-def fit_distro():
-    """will take an input and fit a distribution to it"""
-    pass
 
-
-def chi_square_of_distro():
-    """Will calculate the chi square statistic for a given distribution"""
-    pass
+def chi_square_of_distro(Data: np.array, distributions: list(str), Buckets: int = 11):
+    """Will calculate the chi square statistic for a list of distribution"""
+    # Prepping Data
+    sdz_data = standardize(Data) 
+    sdz_data = clip(sdz, lower_bound, upper_bound)
+    
+    # Getting frequencys
+    obs_frequency, percentile_bins, bins = data_frequency(sdz_data, Buckets)
+    cum_obs_frequency = np.cumsum(obs_frequency)
+    
+    #Fitting distro and getting chi square value
+    Chi_square = []
+    for distro in distributions:
+        exp_frequency, cdf_fitted = expectation_of_distro(sdz_data, percentile_bins, distro )
+        sum_square_error = chi_square_of_distro(obs_frequency, exp_frequency, cum_obs_frequency)
+        Chi_square.append(sum_square_error)
+        
+    # Sorting chi_square
+    Disto_results = pd.DataFrame([distro, Chi_square], columns = ['Distribution','Error']).sort(['Error'], True)
+    return(Disto_results)
 
 
 def find_distribution():
