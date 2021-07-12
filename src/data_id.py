@@ -33,6 +33,38 @@ def replace_nonnumeric(
         return Num
 
 
+def clip_edges(Data: np.Array, pct_lower: float = 0.001, pct_upper: float = 0.99):
+    """WIll clipp the upper % and lower % off of the index
+
+    Arguments:
+        Data {np.Array} -- the input array to clip
+
+    Keyword Arguments:
+        pct_lower {float} -- the lower bound to clip (IE anything below lower_bound % is removed)
+        pct_upper {float} -- the upper bound to clip (anything above the value is removed)
+
+    Returns:
+        np.array
+
+
+    """
+    assert U.typeof(pct_lower) == "Int," "pct_lower needs to be of type int"
+    assert U.typeof(pct_upper) == "Int", "pct_upper needs to be of type int"
+    assert (
+        pct_lower >= 0.0 and pct_lower < 1.00
+    ), "pct_lower needs to be at least 0.0 and less than 1.0"
+    assert (
+        pct_upper <= 1.0 and pct_upper > 0
+    ), "pct_upper needs to be at most 1.0 and greater than 0.0"
+
+    if pct_upper < pct_lower:
+        pct_lower, pct_upper = pct_upper, pct_lower
+
+    data_length = len(Data)
+    Data_Clip = Data[int(pct_lower * data_length) : int(data_length * pct_upper)]
+    return Data_Clip
+
+
 def standardize(Data: Union[pd.Series, np.array]) -> np.array:
     """Will subtract the mean and divided by the std
 
@@ -73,27 +105,6 @@ def standardize(Data: Union[pd.Series, np.array]) -> np.array:
     return sdz_data
 
 
-def clip_edges(Data: np.Array, pct_lower: float = 0.001, pct_upper: float = 0.99):
-    """WIll clipp the upper % and lower % off of the index
-
-    Arguments:
-        Data {np.Array} -- the input array to clip
-
-    Keyword Arguments:
-        pct_lower {float} -- the lower bound to clip (IE anything below lower_bound % is removed)
-        pct_upper {float} -- the upper bound to clip (anything above the value is removed)
-
-    Returns:
-        np.array
-
-
-    """
-    return ()
-    data_length = len(Data)
-    Data_Clip = Data[int(pct_lower * data_length) : int(data_length * pct_upper)]
-    return Data_Clip
-
-
 def data_frequency(Data: np.Array, Buckets: int = 10) -> tuple:
     """will order the data into bins and provide a frequency of the data
 
@@ -105,21 +116,22 @@ def data_frequency(Data: np.Array, Buckets: int = 10) -> tuple:
                          {default: 1}
 
     returns:
-        tuple of numpy arrays
+        tuple of two numpy arrays
             0: the frequency count of each bins
-            1: the percentile of eahc bin
-            2: the right limit of the bins
+            1: the right limit of the bins
 
     Details:
         It will go through and will sort the data into approperate number of bins,
         similar to what a histogram does, it will then do a culmative frequency on
         the bins for an added bonus.
     """
+    assert U.typeof(Buckets) == "Int", "Buckets needs to be an int"
+    assert U.typeof(Data) == "Array", "Data need to be an array"
 
     percentile_bins = np.percentile(Data, np.linspace(0, 100, Buckets))
     # Truth be told, it's actually faster to us np.histogram than write your own
     observed_frequency, bins = np.histogram(Data, bins=percentile_bins)
-    return (observed_frequency, percentile_bins, bins)
+    return (observed_frequency, bins)
 
 
 def expectation_of_distro(Data: np.array, cutoffs: np.array, distribution) -> tuple:
@@ -142,6 +154,8 @@ def expectation_of_distro(Data: np.array, cutoffs: np.array, distribution) -> tu
         It will then take the expectation of that distribution - IE what should the values
         be per cutoff bucket IF the data was truly of that distribution
     """
+
+    assert U.typeof(distribution) == "Str", "Distribution must be a string value"
 
     # below is equivilant to scipy.stats.distribution
     dist = getattr(stats, distribution)
@@ -209,15 +223,13 @@ def chi_square_of_distro(
     sdz_data = clip_edges(sdz_data, lower_bound, upper_bound)
 
     # Getting frequencys
-    obs_frequency, percentile_bins, bins = data_frequency(sdz_data, Buckets)
+    obs_frequency, bins = data_frequency(sdz_data, Buckets)
     cum_obs_frequency = np.cumsum(obs_frequency)
 
     # Fitting distro and getting chi square value
     Chi_square = []
     for distro in distributions:
-        exp_frequency, cdf_fitted = expectation_of_distro(
-            sdz_data, percentile_bins, distro
-        )
+        exp_frequency, cdf_fitted = expectation_of_distro(sdz_data, bins, distro)
         sum_square_error = chi_square_of_distro(
             obs_frequency, exp_frequency, cum_obs_frequency
         )
