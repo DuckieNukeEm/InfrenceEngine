@@ -33,7 +33,7 @@ def replace_nonnumeric(
         return Num
 
 
-def clip_edges(Data: np.Array, pct_lower: float = 0.001, pct_upper: float = 0.99):
+def clip_edges(Data: np.array, pct_lower: float = 0.001, pct_upper: float = 0.99):
     """WIll clipp the upper % and lower % off of the index
 
     Arguments:
@@ -48,8 +48,8 @@ def clip_edges(Data: np.Array, pct_lower: float = 0.001, pct_upper: float = 0.99
 
 
     """
-    assert U.typeof(pct_lower) == "Int," "pct_lower needs to be of type int"
-    assert U.typeof(pct_upper) == "Int", "pct_upper needs to be of type int"
+    assert U.typeof(pct_lower) == "Float", "pct_lower needs to be of type float"
+    assert U.typeof(pct_upper) == "Float", "pct_upper needs to be of type float"
     assert (
         pct_lower >= 0.0 and pct_lower < 1.00
     ), "pct_lower needs to be at least 0.0 and less than 1.0"
@@ -75,7 +75,7 @@ def standardize(Data: Union[pd.Series, np.array]) -> np.array:
         np.array
     """
 
-    assert U.typeof(Data) in [
+    assert U.typeof(Data, False) in [
         "Array",
         "Series",
     ], "Data for standarize isn't a numpy array or a pandas Series"
@@ -105,7 +105,7 @@ def standardize(Data: Union[pd.Series, np.array]) -> np.array:
     return sdz_data
 
 
-def data_frequency(Data: np.Array, Buckets: int = 10) -> tuple:
+def data_frequency(Data: np.array, Buckets: int = 10) -> tuple:
     """will order the data into bins and provide a frequency of the data
 
     Arguments:
@@ -126,7 +126,7 @@ def data_frequency(Data: np.Array, Buckets: int = 10) -> tuple:
         the bins for an added bonus.
     """
     assert U.typeof(Buckets) == "Int", "Buckets needs to be an int"
-    assert U.typeof(Data) == "Array", "Data need to be an array"
+    assert U.typeof(Data) in "Array", "Data need to be an array"
 
     percentile_bins = np.percentile(Data, np.linspace(0, 100, Buckets))
     # Truth be told, it's actually faster to us np.histogram than write your own
@@ -175,44 +175,9 @@ def expectation_of_distro(Data: np.array, cutoffs: np.array, distribution) -> tu
     return expected_frequency, cdf_fitted
 
 
-def chi_square(
-    observed_frequency: np.array,
-    expected_frequency: np.array,
-    cum_observed_frequency: np.array = np.array(),
-) -> float:
-    """will calculate the chi-square between the Data_origin and Data_expected
-
-    Arguments:
-        observed_frequency {np.array} -- the observed frequence from data
-        expected_frequency {np.array} -- the expected frqeuency
-
-    Keyword Arguments:
-        cum_observed_frequency {np.array} -- the cumultaive observed frequency. If an emtpy array
-                                             it will be calculated from the observed_frequency
-                                             {default: []}
-    Returns
-        float -- the chi-square statistic between the observed and expected frequency
-
-    Details
-        This caculates the chi square frequency between the observed and expected frequency
-        by the following formula:
-            insert chi_square formula
-
-    """
-    cum_exp_frequency = np.cumsum(expected_frequency)
-
-    if len(cum_observed_frequency) == 0:
-        cum_observed_frequency = np.cumsum(observed_frequency)
-
-    chi_stat = sum(
-        ((cum_exp_frequency - cum_observed_frequency) ** 2) / cum_observed_frequency
-    )
-    return chi_stat
-
-
-def chi_square_of_distro(
+def find_distribution(
     Data: np.array,
-    distributions: list(str),
+    distributions: list,
     Buckets: int = 11,
     lower_bound: float = 0.001,
     upper_bound: float = 0.999,
@@ -224,75 +189,31 @@ def chi_square_of_distro(
 
     # Getting frequencys
     obs_frequency, bins = data_frequency(sdz_data, Buckets)
-    cum_obs_frequency = np.cumsum(obs_frequency)
 
+    if U.typeof(distributions) == "Str":
+        distributions = [distributions]
     # Fitting distro and getting chi square value
     Chi_square = []
+    P_value = []
+    RMSE = []
     for distro in distributions:
         exp_frequency, cdf_fitted = expectation_of_distro(sdz_data, bins, distro)
-        sum_square_error = chi_square_of_distro(
-            obs_frequency, exp_frequency, cum_obs_frequency
-        )
-        Chi_square.append(sum_square_error)
-
+        res = stats.chisquare(obs_frequency, exp_frequency)
+        Chi_square.append(res.statistic)
+        P_value.append(res.pvalue)
+        RMSE.append(np.sum((obs_frequency - exp_frequency) ** 2))
+    print(Chi_square, P_value, RMSE)
     # Sorting chi_square
-    Disto_results = pd.DataFrame(
-        [distro, Chi_square], columns=["Distribution", "Error"]
-    ).sort_values(["Error"])
-    return Disto_results
-
-
-def find_distribution():
-    """will itteratie through numerical data and find the distribution style for each one"""
-    pass
-    """
-    https://github.com/samread81/Distribution-Fitting-Used_Car_Dataset/blob/master/Workbook.ipynb
-    def fit_distribution(column,pct,pct_lower):
-    py  # Set up list of candidate distributions to use
-        # See https://docs.scipy.org/doc/scipy/reference/stats.html for more
-        y_std,size,y_org = standarise(column,pct,pct_lower)
-        dist_names = ['weibull_min','norm','weibull_max','beta',
-                    'invgauss','uniform','gamma','expon', 'lognorm','pearson3','triang']
-
-        chi_square_statistics = []
-        # 11 bins
-        percentile_bins = np.linspace(0,100,11)
-        percentile_cutoffs = np.percentile(y_std, percentile_bins)
-        observed_frequency, bins = (np.histogram(y_std, bins=percentile_cutoffs))
-        cum_observed_frequency = np.cumsum(observed_frequency)
-
-        # Loop through candidate distributions
-
-        for distribution in dist_names:
-            # Set up distribution and get fitted distribution parameters
-            dist = getattr(scipy.stats, distribution)
-            param = dist.fit(y_std)
-            print("{}\n{}\n".format(dist, param))
-
-
-            # Get expected counts in percentile bins
-            # cdf of fitted sistrinution across bins
-            cdf_fitted = dist.cdf(percentile_cutoffs, *param)
-            expected_frequency = []
-            for bin in range(len(percentile_bins)-1):
-                expected_cdf_area = cdf_fitted[bin+1] - cdf_fitted[bin]
-                expected_frequency.append(expected_cdf_area)
-
-            # Chi-square Statistics
-            expected_frequency = np.array(expected_frequency) * size
-            cum_expected_frequency = np.cumsum(expected_frequency)
-            ss = round(sum (((cum_expected_frequency - cum_observed_frequency) ** 2) / cum_observed_frequency),0)
-            chi_square_statistics.append(ss)
-
-
-        #Sort by minimum ch-square statistics
-        results = pd.DataFrame()
-        results['Distribution'] = dist_names
-        results['chi_square'] = chi_square_statistics
-        results.sort_values(['chi_square'], inplace=True)
-
-
-        print ('\nDistributions listed by Betterment of fit:')
-        print ('............................................')
-        print (results)
-    """
+    Disto_results = (
+        pd.DataFrame(
+            {
+                "Distribution": distributions,
+                "RMSE": RMSE,
+                "Chi_Square": Chi_square,
+                "P_Value": P_value,
+            }
+        )
+        .sort_values(by="Chi_Square", ascending=True)
+        .reset_index()
+    )
+    return Disto_results[["Distribution", "RMSE", "Chi_Square", "P_Value"]]
