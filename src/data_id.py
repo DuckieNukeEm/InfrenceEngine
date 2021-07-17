@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy import stats
+from scipy.special import inv_boxcox
 from typing import Union
 import util as U
 
@@ -134,7 +135,7 @@ def data_frequency(Data: np.array, Buckets: int = 10) -> tuple:
     return (observed_frequency, bins)
 
 
-def expectation_of_distro(Data: np.array, cutoffs: np.array, distribution) -> tuple:
+def expectation_of_distro(Data: np.array, buckets: np.array, distribution) -> tuple:
     """will take an input and fit a distribution and take the expecation
 
     Arguments:
@@ -147,6 +148,7 @@ def expectation_of_distro(Data: np.array, cutoffs: np.array, distribution) -> tu
             tuple of two numpy arrays:
                 0: The expected frequency of the distribution from the Data
                 1: the CDF of the fitted distribution from the data
+                2: A tuple of params from the fitting process
 
     Details:
         For the Data set given, a distribution is "trained" on it, in that it will find
@@ -156,6 +158,8 @@ def expectation_of_distro(Data: np.array, cutoffs: np.array, distribution) -> tu
     """
 
     assert U.typeof(distribution) == "Str", "Distribution must be a string value"
+    assert U.typeof(buckets) in ["Array", "List"], "buckets need to be a list"
+    assert len(buckets) > 0, "buckets needs to be a list with at least one element"
 
     # below is equivilant to scipy.stats.distribution
     dist = getattr(stats, distribution)
@@ -165,14 +169,14 @@ def expectation_of_distro(Data: np.array, cutoffs: np.array, distribution) -> tu
 
     # Get expected counts in percentile bins
     # cdf of fitted sistrinution across bins
-    cdf_fitted = dist.cdf(cutoffs, *param)
+    cdf_fitted = dist.cdf(buckets, *param)
     expected_frequency = []
-    for i in range(len(cutoffs) - 1):
+    for i in range(len(buckets) - 1):
         expected_cdf_area = cdf_fitted[i + 1] - cdf_fitted[i]
         expected_frequency.append(expected_cdf_area)
 
     expected_frequency = np.array(expected_frequency) * len(Data)
-    return expected_frequency, cdf_fitted
+    return expected_frequency, cdf_fitted, (param)
 
 
 def find_distribution(
@@ -192,28 +196,106 @@ def find_distribution(
 
     if U.typeof(distributions) == "Str":
         distributions = [distributions]
+
+    assert U.typeof(distributions) == "List", "distribution must be a list"
     # Fitting distro and getting chi square value
     Chi_square = []
     P_value = []
     RMSE = []
     for distro in distributions:
-        exp_frequency, cdf_fitted = expectation_of_distro(sdz_data, bins, distro)
+        exp_frequency, cdf_fitted, _params = expectation_of_distro(
+            sdz_data, bins, distro
+        )
         res = stats.chisquare(obs_frequency, exp_frequency)
         Chi_square.append(res.statistic)
         P_value.append(res.pvalue)
         RMSE.append(np.sum((obs_frequency - exp_frequency) ** 2))
-    print(Chi_square, P_value, RMSE)
+
     # Sorting chi_square
     Disto_results = (
         pd.DataFrame(
             {
                 "Distribution": distributions,
                 "RMSE": RMSE,
-                "Chi_Square": Chi_square,
-                "P_Value": P_value,
+                "Chi_Square": np.round(Chi_square, 0),
+                "P_Value": np.round(P_value, 4),
             }
         )
         .sort_values(by="Chi_Square", ascending=True)
         .reset_index()
     )
     return Disto_results[["Distribution", "RMSE", "Chi_Square", "P_Value"]]
+
+
+def boxcox_transform(Data: np.ndarray, Lambda: float = None) -> tuple:
+    """Converts a Numpy 1-D array to a normal distribution using a box-cox transform
+
+    Arguments:
+        Data {numpy 1d array} -- the data to convert
+
+    Keyword Arguments:
+        Lambda {float} -- the lambda value to transform
+                          {Default: None}
+
+    Returns:
+        returns a tuple of :
+            0: Numpy 1-d array of the converted data
+            1: lambda value used
+
+    Details:
+        This will convert a given 1-D numpy array into a normal distirbutions. If lambda
+        is None, it will go through and try to find the optimal lambda value (note, can be slow
+        on large dataset ( ~20sec for 10M records)
+
+        However, if you "kinda of" already know the distribution, you can provided the lambda
+        and that will speed it up by 10x to 100x. Some common lambda values for transformations are:
+            * -NL will run a 1/x^(n) transform
+            * -1: will run 1/x transform
+            * -0.5: will run 1/sqrt(x) transfrom (use with a 1/x^2 data set)
+            * 0: will run a log(x) transfrom (use with a e^x dataset)
+            * 0.5: will run a sqrt(x) trasnfrom (use with a x**2)
+            * 1: x (IE, no transformation)
+            * 2: will run a x*2 transform (use with a log_2(x) dataset)
+            * N+: will wun a x*n transfrom
+    """
+
+    assert U.typeof(Data) == "Array", "BoxCox transform needs Data to be an array"
+
+    if Lambda is not None:
+        assert U.typeof(Lambda) in [
+            "Float",
+            "Int",
+        ], "BoxCox transfrom - Lambda needs to be a float or int"
+
+    Res, lmbda = stats.boxcox(Data, lmbda=Lambda)
+    return (Res, lmbda)
+
+
+def revert_boxcox_transform(Data: np.ndarray, Lambda: float = 0) -> np.ndarray:
+    """Reverse a boxcox transformations
+
+    Arguments:
+        Data {np.ndarray} -- box-cox transformed 1-d numpy Array
+
+    Keyword Arguments:
+        Lambda {float} -- Lambda value to use to revert
+                          (default: {0})
+
+    Returns:
+        np.ndarray -- reverted boxcox transform data
+
+    Details:
+        This will reverse a former box cox transfrom. However, you will need to provide a lambda
+        in order for this to work. If no lambda is provided, it will just raise it to the power
+        of e
+    """
+    assert (
+        U.typeof(Data) == "Array"
+    ), "revert_boxcox_transform needs Data to be an array"
+    assert U.typeof(Lambda) in [
+        "Float",
+        "Int",
+    ], "revert_boxcox _transfrom - Lambda needs to be a float or int"
+
+    Res = inv_boxcox(Data, Lambda)
+    return Res
