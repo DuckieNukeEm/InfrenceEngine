@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 from scipy import stats
-from scipy.special import inv_boxcox
 from typing import Union
 import util as U
 
@@ -225,77 +224,3 @@ def find_distribution(
         .reset_index()
     )
     return Disto_results[["Distribution", "RMSE", "Chi_Square", "P_Value"]]
-
-
-def boxcox_transform(Data: np.ndarray, Lambda: float = None) -> tuple:
-    """Converts a Numpy 1-D array to a normal distribution using a box-cox transform
-
-    Arguments:
-        Data {numpy 1d array} -- the data to convert
-
-    Keyword Arguments:
-        Lambda {float} -- the lambda value to transform
-                          {Default: None}
-
-    Returns:
-        returns a tuple of :
-            0: Numpy 1-d array of the converted data
-            1: lambda value used
-
-    Details:
-        This will convert a given 1-D numpy array into a normal distirbutions. If lambda
-        is None, it will go through and try to find the optimal lambda value (note, can be slow
-        on large dataset ( ~20sec for 10M records)
-
-        However, if you "kinda of" already know the distribution, you can provided the lambda
-        and that will speed it up by 10x to 100x. Some common lambda values for transformations are:
-            * -NL will run a 1/x^(n) transform
-            * -1: will run 1/x transform
-            * -0.5: will run 1/sqrt(x) transfrom (use with a 1/x^2 data set)
-            * 0: will run a log(x) transfrom (use with a e^x dataset)
-            * 0.5: will run a sqrt(x) trasnfrom (use with a x**2)
-            * 1: x (IE, no transformation)
-            * 2: will run a x*2 transform (use with a log_2(x) dataset)
-            * N+: will wun a x*n transfrom
-    """
-
-    assert U.typeof(Data) == "Array", "BoxCox transform needs Data to be an array"
-
-    if Lambda is not None:
-        assert U.typeof(Lambda) in [
-            "Float",
-            "Int",
-        ], "BoxCox transfrom - Lambda needs to be a float or int"
-
-    Res, lmbda = stats.boxcox(Data, lmbda=Lambda)
-    return (Res, lmbda)
-
-
-def revert_boxcox_transform(Data: np.ndarray, Lambda: float = 0) -> np.ndarray:
-    """Reverse a boxcox transformations
-
-    Arguments:
-        Data {np.ndarray} -- box-cox transformed 1-d numpy Array
-
-    Keyword Arguments:
-        Lambda {float} -- Lambda value to use to revert
-                          (default: {0})
-
-    Returns:
-        np.ndarray -- reverted boxcox transform data
-
-    Details:
-        This will reverse a former box cox transfrom. However, you will need to provide a lambda
-        in order for this to work. If no lambda is provided, it will just raise it to the power
-        of e
-    """
-    assert (
-        U.typeof(Data) == "Array"
-    ), "revert_boxcox_transform needs Data to be an array"
-    assert U.typeof(Lambda) in [
-        "Float",
-        "Int",
-    ], "revert_boxcox _transfrom - Lambda needs to be a float or int"
-
-    Res = inv_boxcox(Data, Lambda)
-    return Res

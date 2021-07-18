@@ -4,7 +4,7 @@ import numpy as np
 
 def make_test_dataframe(
     Categorical: bool = False,
-    Time_Diff: bool = False,
+    Time_Diff: bool = True,
     Complex: bool = False,
     cols: list = None,
 ):
