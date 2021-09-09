@@ -1,7 +1,7 @@
 from numpy import nan, inf
 import numpy as np
 from datatable import Frame, f, time
-from dataframe import make_test_dataframe
+from test_dataframe import make_test_dataframe
 import sys
 import pytest
 

@@ -353,7 +353,9 @@ def flag_outliers_sd_datatable(
     return Df_out
 
 
-def boxcox_transform(Data: np.ndarray, Lambda: float = None) -> tuple:
+def boxcox_transform(
+    Data: np.ndarray, Lambda: float = None, Min: Union[float, int] = None
+) -> tuple:
     """Converts a Numpy 1-D array to a normal distribution using a box-cox transform
 
     Arguments:
@@ -362,11 +364,14 @@ def boxcox_transform(Data: np.ndarray, Lambda: float = None) -> tuple:
     Keyword Arguments:
         Lambda {float} -- the lambda value to transform
                           {Default: None}
+        Min {float, int} -- the minimum values of the data, if None, will determine the minimum value
+                            {Default: None}
 
     Returns:
         returns a tuple of :
             0: Numpy 1-d array of the converted data
             1: lambda value used
+            2: min value
 
     Details:
         This will convert a given 1-D numpy array into a normal distirbutions. If lambda
@@ -383,6 +388,13 @@ def boxcox_transform(Data: np.ndarray, Lambda: float = None) -> tuple:
             * 1: x (IE, no transformation)
             * 2: will run a x*2 transform (use with a log_2(x) dataset)
             * N+: will wun a x*n transfrom
+
+        Becuase of the natuare of the boxcox tranform (IE sqrts and logs are possible) all data
+        needs to be positive. This is where the Min comes in. If elements of the Data are
+        zero or less, then the entire Data is shifted up by the Min avalue, thus making it
+        positive, the data is transformed, then shifted backdown in a transofrmed value.
+        If the min value IS zero, then it's shfited up by 1e-16, then shifted down by
+        transform of the 1e-16
     """
 
     assert U.typeof(Data) == "Array", "BoxCox transform needs Data to be an array"
@@ -391,13 +403,40 @@ def boxcox_transform(Data: np.ndarray, Lambda: float = None) -> tuple:
         assert U.typeof(Lambda) in [
             "Float",
             "Int",
-        ], "BoxCox transfrom - Lambda needs to be a float or int"
+        ], "boxcox_transform - Lambda needs to be a float or int"
 
-    Res, lmbda = boxcox(Data, lmbda=Lambda)
-    return (Res, lmbda)
+    if Min is None:
+        Min_value = np.min(Data)
+    else:
+        assert U.yupeof(Min) in [
+            "Float",
+            "Int",
+        ], "boxcox_transform - Min value must be an Int, Float, or None"
+        Min_value = Min
+
+    if Min_value < 0:
+        Data = Data + abs(Min_value)
+
+    if Min_value == 0.0:
+        Min_valie = 1e-16
+        Data = Data + Min_valie
+
+    if Lambda is None:
+        Res, lmbda = boxcox(Data, lmbda=Lambda)
+    else:
+        Res = boxcox(Data, lmbda=Lambda)
+        lmbda = Lambda
+
+    Min_lambda = boxcox(Min_value, lmbda)
+
+    Res = Res - Min_lambda
+
+    return (Res, lmbda, Min)
 
 
-def revert_boxcox_transform(Data: np.ndarray, Lambda: float = 0) -> np.ndarray:
+def revert_boxcox_transform(
+    Data: np.ndarray, Lambda: float = 0, Min: Union[float, int] = None
+) -> np.ndarray:
     """Reverse a boxcox transformations
 
     Arguments:
@@ -406,6 +445,8 @@ def revert_boxcox_transform(Data: np.ndarray, Lambda: float = 0) -> np.ndarray:
     Keyword Arguments:
         Lambda {float} -- Lambda value to use to revert
                           (default: {0})
+        Min {float, int} -- minimum value of the original dataset
+                            {default: None}
 
     Returns:
         np.ndarray -- reverted boxcox transform data
@@ -414,6 +455,12 @@ def revert_boxcox_transform(Data: np.ndarray, Lambda: float = 0) -> np.ndarray:
         This will reverse a former box cox transfrom. However, you will need to provide a lambda
         in order for this to work. If no lambda is provided, it will just raise it to the power
         of e
+
+        Now, due ot the quirk of boxcox transform, the original transform can't handle values
+        <= zeros - thus everything must be shifted to be at least postived.
+        When we do the reverse transform, just like intergrals, there is a + C constant that is
+        generally assumed to be zero. However, providing the min from the original dataset
+        allows to follow re-establish the original dataset
     """
     assert (
         U.typeof(Data) == "Array"
@@ -421,7 +468,13 @@ def revert_boxcox_transform(Data: np.ndarray, Lambda: float = 0) -> np.ndarray:
     assert U.typeof(Lambda) in [
         "Float",
         "Int",
-    ], "revert_boxcox _transfrom - Lambda needs to be a float or int"
+    ], "revert_boxcox _transform - Lambda needs to be a float or int"
 
-    Res = inv_boxcox(Data, Lambda)
+    if Min is None:
+        Res = inv_boxcox(Data, Lambda)
+    else:
+        Min_llamda = boxcox(Min, Lambda)
+        Res = inv_boxcox(Data + Min_llamda, Lambda)
+        Res = Res - Min
+
     return Res

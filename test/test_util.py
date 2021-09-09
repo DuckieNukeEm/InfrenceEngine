@@ -1,7 +1,7 @@
 from pandas import DataFrame, Series
 from numpy import array
 from datatable import Frame, f, time
-from dataframe import make_test_dataframe
+from test_dataframe import make_test_dataframe
 import pytest
 import sys
 

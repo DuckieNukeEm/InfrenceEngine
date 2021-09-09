@@ -1,6 +1,6 @@
 from pandas import DataFrame, Series
 from datatable import Frame, f
-from dataframe import make_test_dataframe
+from test_dataframe import make_test_dataframe
 import pytest
 import sys
 
@@ -355,3 +355,10 @@ def test_flag_outliers_sel_vars_test_groupcorrect_dt():
     assert return_val[0, 4] == 0
     assert return_val[1, 4] == 1
     assert return_val[7, 4] == 0
+
+
+# #############################################################################
+# #############################################################################
+# boxcox
+# #############################################################################
+# #############################################################################
