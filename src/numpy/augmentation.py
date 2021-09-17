@@ -3,6 +3,7 @@ from scipy import stats
 from typing import Union
 from augmentation import Augmentation as Aug
 from .numpy.data_types import data_types
+from .numpy.stats import Stats
 import util as U
 
 
@@ -15,7 +16,8 @@ class Augmentation(Aug):
     """
 
     def __init__(self):
-        self.data_types = data_types()
+        self.np_types = data_types()
+        self.stats = Stats()
 
     def replace_single_nonnumeric(
         self,

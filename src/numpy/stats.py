@@ -3,12 +3,46 @@ import utils as U
 from scipy import stats
 from typing import Union
 from .stats import Stats as base_stats
-from augmentation import Augmentation
+from .numpy.augmentation import Augmentation
+from .numpy.data_types import data_types as np_data_types
+from data_types import data_types
 
 
 class Stats(base_stats):
     def __init__(self):
-        pass
+        self.aug = Augmentation()
+        self.data_types = data_types()
+        self.np_types = np_data_types()
+
+    def sample(
+        self, Data: np.array, size: Union[int, float], with_replacement: bool = True
+    ) -> np.array:
+        """Generates a np.array of index that are the samples sampled from the Data
+
+        Arguments:
+            Data {np.array} -- data to draw the samples from
+            size {Union[int, float]} -- either the number of records to pull (if int)
+                                        or the % to sample (if float)
+
+        Keyword Arguments:
+            with_replacement {bool} -- sample with replacement (default: {True})
+
+        Returns:
+            np.array -- [description]
+        """
+        if self.data_types.is_numeric(size) is False:
+            raise TypeError("size needs to be an int or a float, not a %s" % type(size))
+
+        if self.np_types.is_array(Data) is False:
+            raise TypeError("Data needs to be an numpy ndarry")
+
+        if with_replacement is not True:
+            with_replacement = False
+
+        if self.data_types.is_float(size) is True:
+            size = int(round(Data.size[0] * size, 0))
+        Sample = np.random.choice(Data.size[0], size=size, replace=with_replacement)
+        return Sample
 
     def data_frequency(self, Data: np.array, Buckets: int = 10) -> tuple:
         """will order the data into bins and provide a frequency of the data
@@ -30,11 +64,11 @@ class Stats(base_stats):
             similar to what a histogram does, it will then do a culmative frequency on
             the bins for an added bonus.
         """
-        if U.typeof(Buckets) != "Int":
-            raise TypeError("Buckets needs to be an int")
+        if self.data_types.is_int(Buckets) is False:
+            raise TypeError("Buckets shouldbe an int, %s was provided" % type(Buckets))
 
-        if self.is_array(Data) is False:
-            raise TypeError("Data needs to be an array")
+        if self.np_type.is_array(Data) is False:
+            raise TypeError("Data needs to be a numpy array")
 
         percentile_bins = np.percentile(Data, np.linspace(0, 100, Buckets))
         # Truth be told, it's actually faster to us np.histogram than write your own
@@ -96,29 +130,41 @@ class Stats(base_stats):
     ):
         """Will calculate the chi square statistic for a list of distribution"""
         # Prepping Data
-        sdz_data = self.standardize(Data)
-        sdz_data = self.clip_edges(sdz_data, lower_bound, upper_bound)
+        sdz_data = self.augmentation.standardize(Data)
+        sdz_data = self.augmentation.clip_edges(sdz_data, lower_bound, upper_bound)
 
         # Getting frequencys
         obs_frequency, bins = self.data_frequency(sdz_data, Buckets)
 
-        if U.typeof(distributions) == "Str":
+        if self.data_Types.is_str(distributions) is True:
             distributions = [distributions]
 
         assert U.typeof(distributions) == "List", "distribution must be a list"
         # Fitting distro and getting chi square value
-        Chi_square = []
-        P_value = []
-        RMSE = []
+        # Chi_square = []
+        # P_value = []
+        # RMSE = []
+        Array = []
         for distro in distributions:
             exp_frequency, cdf_fitted, _params = self.expectation_of_distro(
                 sdz_data, bins, distro
             )
             res = stats.chisquare(obs_frequency, exp_frequency)
-            Chi_square.append(res.statistic)
-            P_value.append(res.pvalue)
-            RMSE.append(np.sum((obs_frequency - exp_frequency) ** 2))
+            # Chi_square.append(res.statistic)
+            # P_value.append(res.pvalue)
+            # RMSE.append(np.sum((obs_frequency - exp_frequency) ** 2))
 
+            Chi_square = res.statistic
+            P_value = res.pvalue
+            RMSE = np.sum((obs_frequency - exp_frequency) ** 2)
+            Array.append((distro, RMSE, Chi_square, P_value))
+
+        NdArray = np.array(Array, dtype="|S4, f32, f32, f32")
+
+        # Sorting chi_square
+        NdArray = NdArray[NdArray[:, 2].argsort()]
+
+        return NdArray
         # Sorting chi_square
         """   Disto_results = (
             pd.DataFrame(
@@ -134,26 +180,25 @@ class Stats(base_stats):
         )
         return Disto_results[["Distribution", "RMSE", "Chi_Square", "P_Value"]] """
 
+    def crammers_v(self, x: np.array, y: np.array()):
+        """calculating crammer v of two categorical arrays
+
+        https://www.kaggle.com/akshay22071995/alone-in-the-woods-using-theil-s-u-for-survival
+        """
+        confusion_matrix = np.crosstab(x, y)
+        chi2 = np.chi2_contingency(confusion_matrix)[0]
+        n = confusion_matrix.sum().sum()
+        phi2 = chi2 / n
+        r, k = confusion_matrix.shape
+        phi2corr = max(0, phi2 - ((k - 1) * (r - 1)) / (n - 1))
+        rcorr = r - ((r - 1) ** 2) / (n - 1)
+        kcorr = k - ((k - 1) ** 2) / (n - 1)
+        return np.sqrt(phi2corr / min((kcorr - 1), (rcorr - 1)))
+
 
 def int_corr():
     """Find correlation for integers"""
     pass
-
-
-def cramers_v(x, y):
-    """calculating crammer v
-
-    https://www.kaggle.com/akshay22071995/alone-in-the-woods-using-theil-s-u-for-survival
-    """
-    confusion_matrix = np.crosstab(x, y)
-    chi2 = np.chi2_contingency(confusion_matrix)[0]
-    n = confusion_matrix.sum().sum()
-    phi2 = chi2 / n
-    r, k = confusion_matrix.shape
-    phi2corr = max(0, phi2 - ((k - 1) * (r - 1)) / (n - 1))
-    rcorr = r - ((r - 1) ** 2) / (n - 1)
-    kcorr = k - ((k - 1) ** 2) / (n - 1)
-    return np.sqrt(phi2corr / min((kcorr - 1), (rcorr - 1)))
 
 
 def compute_confusion_matrix(x: np.array, y: np.array) -> np.array:
