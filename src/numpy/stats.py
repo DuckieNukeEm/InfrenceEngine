@@ -197,7 +197,7 @@ class Stats(base_stats):
 
 
 def int_corr():
-    """Find correlation for integers"""
+    """Find correlation for numeric variables"""
     pass
 
 
