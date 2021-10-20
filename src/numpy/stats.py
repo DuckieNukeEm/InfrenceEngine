@@ -17,7 +17,7 @@ class Stats(base_stats):
     def sample(
         self, Data: np.array, size: Union[int, float], with_replacement: bool = True
     ) -> np.array:
-        """Generates a np.array of index that are the samples sampled from the Data
+        """Generates a np.array of index that are the row index of sampled records
 
         Arguments:
             Data {np.array} -- data to draw the samples from
