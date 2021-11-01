@@ -11,7 +11,7 @@ class Augmentation(Aug):
 
     This class provides the tools that will modify, or 'augment' the data, and that is it's sole purpose
 
-    This is the base class, an future enhancements should be built from this class
+    This is the base class, any future enhancements should be built from this class
     """
 
     def __init__(self):

@@ -34,7 +34,7 @@ class data_types:
         """checks if object is a list"""
         return isinstance(obj, list)
 
-    def is_dictionary(self, obj) -> bool:
+    def is_dict(self, obj) -> bool:
         """checks if object is a dictionary"""
         return isinstance(obj, dict)
 
@@ -50,7 +50,7 @@ class data_types:
         """checks if object is a file"""
         return os.path.isdir(obj)
 
-    def is_Set(self, obj) -> bool:
+    def is_set(self, obj) -> bool:
         """checks if object is a set"""
         return isinstance(obj, set)
 

@@ -4,8 +4,6 @@ from datatable import Frame, f, time
 from test_dataframe import make_test_dataframe
 import pytest
 import sys
-
-sys.path.insert(0, "../src")
 import util as U
 
 # Creating common params

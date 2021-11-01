@@ -1,3 +1,4 @@
+from numpy.lib.arraysetops import isin
 from pandas import DataFrame, Series
 from numpy import ndarray
 from datatable import Frame

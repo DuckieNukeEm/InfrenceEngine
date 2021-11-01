@@ -1,18 +1,21 @@
 import numpy as np
-import utils as U
+from numpy.core.fromnumeric import argmin
+from numpy.core.records import array
+import util as U
 from scipy import stats
 from typing import Union
-from .stats import Stats as base_stats
-from .numpy.augmentation import Augmentation
-from .numpy.data_types import data_types as np_data_types
+from infrence_engine.stats import Stats as base_stats
+from infrence_engine.numpy.augmentation import Augmentation
+from infrence_engine.numpy.data_types import data_types as np_data_types
 from data_types import data_types
+from error import raise_type_error
 
 
 class Stats(base_stats):
     def __init__(self):
         self.aug = Augmentation()
-        self.data_types = data_types()
-        self.np_types = np_data_types()
+        self.dt = data_types()
+        self.n_dt = np_data_types()
 
     def sample(
         self, Data: np.array, size: Union[int, float], with_replacement: bool = True
@@ -30,16 +33,16 @@ class Stats(base_stats):
         Returns:
             np.array -- [description]
         """
-        if self.data_types.is_numeric(size) is False:
-            raise TypeError("size needs to be an int or a float, not a %s" % type(size))
+        if self.dt.is_numeric(size) is False:
+            raise_type_error(float, size=size)
 
-        if self.np_types.is_array(Data) is False:
-            raise TypeError("Data needs to be an numpy ndarry")
+        if self.n_dt.is_array(Data) is False:
+            raise_type_error(Data, "Data", ["ndarry"])
 
         if with_replacement is not True:
             with_replacement = False
 
-        if self.data_types.is_float(size) is True:
+        if self.dt.is_float(size) is True:
             size = int(round(Data.size[0] * size, 0))
         Sample = np.random.choice(Data.size[0], size=size, replace=with_replacement)
         return Sample
@@ -64,13 +67,14 @@ class Stats(base_stats):
             similar to what a histogram does, it will then do a culmative frequency on
             the bins for an added bonus.
         """
-        if self.data_types.is_int(Buckets) is False:
+        if self.dt.is_int(Buckets) is False:
             raise TypeError("Buckets shouldbe an int, %s was provided" % type(Buckets))
 
-        if self.np_type.is_array(Data) is False:
+        if self.n_dt.is_array(Data) is False:
             raise TypeError("Data needs to be a numpy array")
 
         percentile_bins = np.percentile(Data, np.linspace(0, 100, Buckets))
+
         # Truth be told, it's actually faster to us np.histogram than write your own
         observed_frequency, bins = np.histogram(Data, bins=percentile_bins)
         return (observed_frequency, bins)
@@ -98,8 +102,20 @@ class Stats(base_stats):
             It will then take the expectation of that distribution - IE what should the values
             be per cutoff bucket IF the data was truly of that distribution
         """
+        if self.dt.is_string(distribution) is False:
+            raise TypeError(
+                "Distribution must be a string value, type %s was passed instead"
+                % type(distribution)
+            )
 
-        assert U.typeof(distribution) == "Str", "Distribution must be a string value"
+        if self.n_dt.is_array(buckets) is False:
+            raise TypeError(
+                "Buckets need to be of type list or array %s was passed instead"
+                % type(buckets)
+            )
+
+        if self.dt.is_list(buckets) is False:
+            pass
         assert U.typeof(buckets) in ["Array", "List"], "buckets need to be a list"
         assert len(buckets) > 0, "buckets needs to be a list with at least one element"
 
@@ -180,7 +196,7 @@ class Stats(base_stats):
         )
         return Disto_results[["Distribution", "RMSE", "Chi_Square", "P_Value"]] """
 
-    def crammers_v(self, x: np.array, y: np.array()):
+    def crammers_v(self, x: np.array, y: np.array()) -> float:
         """calculating crammer v of two categorical arrays
 
         https://www.kaggle.com/akshay22071995/alone-in-the-woods-using-theil-s-u-for-survival
@@ -196,9 +212,36 @@ class Stats(base_stats):
         return np.sqrt(phi2corr / min((kcorr - 1), (rcorr - 1)))
 
 
-def int_corr():
-    """Find correlation for numeric variables"""
-    pass
+def corr(X: array, silent: bool = False) -> array:
+    """Find correlation matrix amongst variables of numeric type
+
+    Args:
+        X (array): numpy numeric array
+        silent (bool, optional): if X is not a numeric array, should it be silently ignored?
+                                 Defaults to False.
+
+    Raises:
+        TypeError: if X isn't a numpy numeric type
+
+    Returns:
+        array: Correlation matrix of dtype.64.
+
+    Details:
+        If Silent is true and X isn't a numeric type, than nxn matrix of zero is return, where n is
+        the number of columns in X.
+    """
+
+    if np_data_types.is_numeric(X) is False:
+        if silent is False:
+            raise TypeError(
+                "X needs to be a numeric data type (float, int), type %s was provded"
+                % X.dtype
+            )
+        else:
+            return np.zeros(shape=(X.shape[1], X.shape[1]))
+
+    Cor_Mat = np.cov(X)
+    return Cor_Mat
 
 
 def compute_confusion_matrix(x: np.array, y: np.array) -> np.array:
