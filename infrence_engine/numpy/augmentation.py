@@ -1,9 +1,9 @@
 import numpy as np
 from scipy import stats
 from typing import Union
-from augmentation import Augmentation as Aug
-from .numpy.data_types import data_types
-from .numpy.stats import Stats
+from infrence_engine.augmentation import Augmentation as Aug
+from infrence_engine.numpy.data_types import data_types
+from infrence_engine.numpy.stats import Stats
 import util as U
 
 

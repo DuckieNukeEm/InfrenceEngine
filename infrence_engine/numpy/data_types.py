@@ -1,11 +1,12 @@
 import numpy as np
+from infrence_engine.data_type import data_types as base_data_types
 
 
-class data_types:
+class data_types(base_data_types):
     def __int__(self):
-        self.int = ["i", "u"]
+        self.base_python_types()
+        self.int = ["l", "u"]
         self.float = ["f"]
-        self.numeric = self.int + self.float
         self.bool = ["b"]
         self.complex = ["c"]
         self.byte = ["S"]
@@ -13,6 +14,7 @@ class data_types:
         self.datetime = ["M"]
         self.timedelta = ["m"]
         self.other = ["V"]
+        self.init_level2_types()
 
     def is_array(self, obj) -> bool:
         """checks if X is a numpy array"""
@@ -21,49 +23,49 @@ class data_types:
     def char_type(self, obj) -> str:
         """returns the dtype char of the numpy type"""
         if self.is_array(obj) is True:
-            return obj.dtype.char
+            return obj.dtype.kind
         else:
             return ""
 
     def is_numeric(self, obj) -> bool:
         """checks if numpy numeric"""
-        return self.char_type(obj) in self.numeric
+        return self.char_type(obj) in tuple(self.numeric)
 
     def is_int(self, obj) -> bool:
         """checks if numpy integer"""
-        return self.char_type(obj) in self.int
+        return self.char_type(obj) in tuple(self.int)
 
     def is_float(self, obj) -> bool:
         """checks if numpy float"""
-        return self.char_type(obj) in self.float
+        return self.char_type(obj) in tuple(self.float)
 
     def is_bool(self, obj) -> bool:
         """checks if numpy bool"""
-        return self.char_type(obj) in self.bool
+        return self.char_type(obj) in tuple(self.bool)
 
     def is_complex(self, obj) -> bool:
         """checks if numpy complex"""
-        return self.char_type(obj) in self.complex
+        return self.char_type(obj) in tuple(self.complex)
 
     def is_byte(self, obj) -> bool:
         """checks if numpy byte"""
-        return self.char_type(obj) in self.byte
+        return self.char_type(obj) in tuple(self.byte)
 
     def is_char(self, obj) -> bool:
         """checks if numpy char"""
-        return self.char_type(obj) in self.char
+        return self.char_type(obj) in tuple(self.char)
 
     def is_timedelta(self, obj) -> bool:
         """checks if numpy timedelta"""
-        return self.char_type(obj) in self.timedelta
+        return self.char_type(obj) in tuple(self.timedelta)
 
     def is_datetime(self, obj) -> bool:
         """checks if numpy datetime"""
-        return self.char_type(obj) in self.datetime
+        return self.char_type(obj) in tuple(self.datetime)
 
     def is_other(self, obj) -> bool:
-        """checks if numpy datetime"""
-        return self.char_type(obj) in self.other
+        """checks if numpy other"""
+        return self.char_type(obj) in tuple(self.other)
 
 
 class data_types_extended:
@@ -131,3 +133,69 @@ class data_types_extended:
             return True
         else:
             return False
+
+
+class np_data_types2(data_types):
+    def __int__(self):
+        self.Int = ["l", "u"]
+        self.float = ["f"]
+        self.bool = ["b"]
+        self.complex = ["c"]
+        self.byte = ["S"]
+        self.char = ["O", "U"]
+        self.datetime = ["M"]
+        self.timedelta = ["m"]
+        self.other = ["V"]
+        self.base_python_types()
+        self.init_level2_types()
+
+    def is_array(self, obj) -> bool:
+        """checks if X is a numpy array"""
+        return isinstance(obj, np.ndarray)
+
+    def char_type(self, obj) -> str:
+        """returns the dtype char of the numpy type"""
+        if self.is_array(obj) is True:
+            return obj.dtype.kind
+        else:
+            return ""
+
+    def is_numeric(self, obj) -> bool:
+        """checks if numpy numeric"""
+        return np.any(self.char_type(obj) in tuple(self.numeric))
+
+    def is_int(self, obj) -> bool:
+        """checks if numpy integer"""
+        return self.char_type(obj) in tuple(self.int)
+
+    def is_float(self, obj) -> bool:
+        """checks if numpy float"""
+        return self.char_type(obj) in tuple(self.float)
+
+    def is_bool(self, obj) -> bool:
+        """checks if numpy bool"""
+        return self.char_type(obj) in tuple(self.bool)
+
+    def is_complex(self, obj) -> bool:
+        """checks if numpy complex"""
+        return self.char_type(obj) in tuple(self.complex)
+
+    def is_byte(self, obj) -> bool:
+        """checks if numpy byte"""
+        return self.char_type(obj) in tuple(self.byte)
+
+    def is_char(self, obj) -> bool:
+        """checks if numpy char"""
+        return self.char_type(obj) in tuple(self.char)
+
+    def is_timedelta(self, obj) -> bool:
+        """checks if numpy timedelta"""
+        return self.char_type(obj) in tuple(self.timedelta)
+
+    def is_datetime(self, obj) -> bool:
+        """checks if numpy datetime"""
+        return self.char_type(obj) in tuple(self.datetime)
+
+    def is_other(self, obj) -> bool:
+        """checks if numpy other"""
+        return self.char_type(obj) in tuple(self.other)

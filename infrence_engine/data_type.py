@@ -2,17 +2,33 @@ import os
 from datetime import date, datetime, timedelta, time, tzinfo, timezone
 
 
+def unpack(*args):
+    """adds all elements of each arg to a list
+
+    Details:
+        if a elemnt of args is not iterable, it will make it iterable so it can add it to a list
+        if it is iterable, it will iterate through each one
+
+    """
+    end_list = []
+    for a in args:
+        try:
+            end_list = end_list + [x for x in a]
+        except TypeError:
+            end_list = end_list + [x for x in [a]]
+    return end_list
+
+
 class data_types:
     def __init__(self):
         self.base_python_types()
-        self.init_level2_types
+        self.init_level2_types()
 
     def base_python_types(self):
         """sets all the base level python types as attributes"""
         self.int = int
         self.float = float
         self.complex = complex
-        self.numeric = [self.int, self.float]
         self.bool = bool
         self.str = str
         self.tuple = tuple
@@ -55,18 +71,19 @@ class data_types:
                 binary = bytes, bytearray, memoryview + byte_type from args
                 tempoarl = datetime, timerange + tempoarl_list from args
         """
-        self.numeric = [self.int, self.float, self.complex] + numeric_type
-        self.sequence = [self.tuple, self.list, self.range] + sequence_type
-        self.mapping = [self.dict] + mapping_type
-        self.binary = [self.bytes, self.bytearray, self.memoryview] + byte_type
-        self.temporal = [
+        self.numeric = unpack(self.int, self.float, self.complex, numeric_type)
+        self.sequence = unpack(self.tuple, self.list, self.range, sequence_type)
+        self.mapping = unpack(self.dict, mapping_type)
+        self.binary = unpack(self.bytes, self.bytearray, self.memoryview, byte_type)
+        self.temporal = unpack(
             self.datetime,
             self.date,
             self.timedelta,
             self.time,
             self.tzinfo,
             self.timezone,
-        ] + temporal_type
+            temporal_type,
+        )
 
     # Numeric types
     def is_int(self, obj) -> bool:

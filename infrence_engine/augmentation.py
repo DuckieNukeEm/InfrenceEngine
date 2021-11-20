@@ -2,11 +2,10 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 from typing import Union
-from augmentation import Augmentation as Aug
 import util as U
 
 
-class Augmentation(Aug):
+class Augmentation:
     """Base augmentation class
 
     This class provides the tools that will modify, or 'augment' the data, and that is it's sole purpose
