@@ -1,19 +1,16 @@
 import numpy as np
-from numpy.core.fromnumeric import argmin
 from numpy.core.records import array
 import util as U
 from scipy import stats
-from typing import Union
-from infrence_engine.stats import Stats as base_stats
+from typing import Union, List
 from infrence_engine.numpy.augmentation import Augmentation
 from infrence_engine.numpy.data_types import data_types as np_data_types
 from data_types import data_types
-from error import raise_type_error
+from infrence_engine.error import raise_type_error
 
 
-class Stats(base_stats):
+class Stats:
     def __init__(self):
-        self.aug = Augmentation()
         self.dt = data_types()
         self.n_dt = np_data_types()
 
@@ -34,7 +31,7 @@ class Stats(base_stats):
             np.array -- [description]
         """
         if self.dt.is_numeric(size) is False:
-            raise_type_error(float, size=size)
+            raise_type_error(size, "size", self.dt.numeric)
 
         if self.n_dt.is_array(Data) is False:
             raise_type_error(Data, "Data", ["ndarry"])
@@ -44,157 +41,10 @@ class Stats(base_stats):
 
         if self.dt.is_float(size) is True:
             size = int(round(Data.size[0] * size, 0))
+
         Sample = np.random.choice(Data.size[0], size=size, replace=with_replacement)
+
         return Sample
-
-    def data_frequency(self, Data: np.array, Buckets: int = 10) -> tuple:
-        """will order the data into bins and provide a frequency of the data
-
-        Arguments:
-            Data {np.array} -- an input numpy array
-
-        Keyword Arguments:
-            Buckets {int} -- Number of buckets to sort the data into
-                            {default: 1}
-
-        returns:
-            tuple of two numpy arrays
-                0: the frequency count of each bins
-                1: the right limit of the bins
-
-        Details:
-            It will go through and will sort the data into approperate number of bins,
-            similar to what a histogram does, it will then do a culmative frequency on
-            the bins for an added bonus.
-        """
-        if self.dt.is_int(Buckets) is False:
-            raise TypeError("Buckets shouldbe an int, %s was provided" % type(Buckets))
-
-        if self.n_dt.is_array(Data) is False:
-            raise TypeError("Data needs to be a numpy array")
-
-        percentile_bins = np.percentile(Data, np.linspace(0, 100, Buckets))
-
-        # Truth be told, it's actually faster to us np.histogram than write your own
-        observed_frequency, bins = np.histogram(Data, bins=percentile_bins)
-        return (observed_frequency, bins)
-
-    def expectation_of_distro(
-        self, Data: np.array, buckets: np.array, distribution
-    ) -> tuple:
-        """will take an input and fit a distribution and take the expecation
-
-        Arguments:
-                Data {np.array} -- data source to fit distirbution expectation_of_distro
-                cutoffs {np.array} -- the percentile cutoff points to measure against
-                distribution {str} -- the name of the distribtion to fit to. This must
-                                    be a distribution name contained in scipy
-
-        Returns:
-                tuple of two numpy arrays:
-                    0: The expected frequency of the distribution from the Data
-                    1: the CDF of the fitted distribution from the data
-                    2: A tuple of params from the fitting process
-
-        Details:
-            For the Data set given, a distribution is "trained" on it, in that it will find
-            build a distribution with the same parameters as the Data set has.
-            It will then take the expectation of that distribution - IE what should the values
-            be per cutoff bucket IF the data was truly of that distribution
-        """
-        if self.dt.is_string(distribution) is False:
-            raise TypeError(
-                "Distribution must be a string value, type %s was passed instead"
-                % type(distribution)
-            )
-
-        if self.n_dt.is_array(buckets) is False:
-            raise TypeError(
-                "Buckets need to be of type list or array %s was passed instead"
-                % type(buckets)
-            )
-
-        if self.dt.is_list(buckets) is False:
-            pass
-        assert U.typeof(buckets) in ["Array", "List"], "buckets need to be a list"
-        assert len(buckets) > 0, "buckets needs to be a list with at least one element"
-
-        # below is equivilant to scipy.stats.distribution
-        dist = getattr(stats, distribution)
-
-        # fitting data
-        param = dist.fit(Data)
-
-        # Get expected counts in percentile bins
-        # cdf of fitted sistrinution across bins
-        cdf_fitted = dist.cdf(buckets, *param)
-        expected_frequency = []
-        for i in range(len(buckets) - 1):
-            expected_cdf_area = cdf_fitted[i + 1] - cdf_fitted[i]
-            expected_frequency.append(expected_cdf_area)
-
-        expected_frequency = np.array(expected_frequency) * len(Data)
-        return expected_frequency, cdf_fitted, (param)
-
-    def find_distribution(
-        self,
-        Data: np.array,
-        distributions: list,
-        Buckets: int = 11,
-        lower_bound: float = 0.001,
-        upper_bound: float = 0.999,
-    ):
-        """Will calculate the chi square statistic for a list of distribution"""
-        # Prepping Data
-        sdz_data = self.augmentation.standardize(Data)
-        sdz_data = self.augmentation.clip_edges(sdz_data, lower_bound, upper_bound)
-
-        # Getting frequencys
-        obs_frequency, bins = self.data_frequency(sdz_data, Buckets)
-
-        if self.data_Types.is_str(distributions) is True:
-            distributions = [distributions]
-
-        assert U.typeof(distributions) == "List", "distribution must be a list"
-        # Fitting distro and getting chi square value
-        # Chi_square = []
-        # P_value = []
-        # RMSE = []
-        Array = []
-        for distro in distributions:
-            exp_frequency, cdf_fitted, _params = self.expectation_of_distro(
-                sdz_data, bins, distro
-            )
-            res = stats.chisquare(obs_frequency, exp_frequency)
-            # Chi_square.append(res.statistic)
-            # P_value.append(res.pvalue)
-            # RMSE.append(np.sum((obs_frequency - exp_frequency) ** 2))
-
-            Chi_square = res.statistic
-            P_value = res.pvalue
-            RMSE = np.sum((obs_frequency - exp_frequency) ** 2)
-            Array.append((distro, RMSE, Chi_square, P_value))
-
-        NdArray = np.array(Array, dtype="|S4, f32, f32, f32")
-
-        # Sorting chi_square
-        NdArray = NdArray[NdArray[:, 2].argsort()]
-
-        return NdArray
-        # Sorting chi_square
-        """   Disto_results = (
-            pd.DataFrame(
-                {
-                    "Distribution": distributions,
-                    "RMSE": RMSE,
-                    "Chi_Square": np.round(Chi_square, 0),
-                    "P_Value": np.round(P_value, 4),
-                }
-            )
-            .sort_values(by="Chi_Square", ascending=True)
-            .reset_index()
-        )
-        return Disto_results[["Distribution", "RMSE", "Chi_Square", "P_Value"]] """
 
     def crammers_v(self, x: np.array, y: np.array()) -> float:
         """calculating crammer v of two categorical arrays
@@ -211,37 +61,24 @@ class Stats(base_stats):
         kcorr = k - ((k - 1) ** 2) / (n - 1)
         return np.sqrt(phi2corr / min((kcorr - 1), (rcorr - 1)))
 
+    def corr(self, X: np.ndarray) -> array:
+        """Find correlation matrix amongst variables of numeric type
 
-def corr(X: array, silent: bool = False) -> array:
-    """Find correlation matrix amongst variables of numeric type
+        Args:
+            X (array): numpy numeric array
 
-    Args:
-        X (array): numpy numeric array
-        silent (bool, optional): if X is not a numeric array, should it be silently ignored?
-                                 Defaults to False.
+        Raises:
+            TypeError: if X isn't a numpy numeric type
 
-    Raises:
-        TypeError: if X isn't a numpy numeric type
+        Returns:
+            array: Correlation matrix of dtype.64.
+        """
 
-    Returns:
-        array: Correlation matrix of dtype.64.
+        if self.n_dt.is_numeric(X) is False:
+            raise_type_error(X, "X", self.n_dt.numeric)
 
-    Details:
-        If Silent is true and X isn't a numeric type, than nxn matrix of zero is return, where n is
-        the number of columns in X.
-    """
-
-    if np_data_types.is_numeric(X) is False:
-        if silent is False:
-            raise TypeError(
-                "X needs to be a numeric data type (float, int), type %s was provded"
-                % X.dtype
-            )
-        else:
-            return np.zeros(shape=(X.shape[1], X.shape[1]))
-
-    Cor_Mat = np.cov(X)
-    return Cor_Mat
+        Cor_Mat = np.cov(X, rowvar=False)
+        return Cor_Mat
 
 
 def compute_confusion_matrix(x: np.array, y: np.array) -> np.array:

@@ -1,13 +1,12 @@
 import numpy as np
-from scipy import stats
 from typing import Union
-from infrence_engine.augmentation import Augmentation as Aug
-from infrence_engine.numpy.data_types import data_types
-from infrence_engine.numpy.stats import Stats
+from infrence_engine.numpy.data_types import numpy_data_types
+from infrence_engine.data_type import data_types
+from infrence_engine.error import raise_type_error
 import util as U
 
 
-class Augmentation(Aug):
+class Augmentation:
     """augmentation class built in numpy
 
     This class provides the tools that will modify, or 'augment' the data, and that is it's sole purpose
@@ -16,8 +15,8 @@ class Augmentation(Aug):
     """
 
     def __init__(self):
-        self.np_types = data_types()
-        self.stats = Stats()
+        self.ndt = numpy_data_types()
+        self.dt = data_types()
 
     def replace_single_nonnumeric(
         self,
@@ -49,11 +48,13 @@ class Augmentation(Aug):
         else:
             return Num
 
-    def clip_edges(Data: np.array, pct_lower: float = 0.001, pct_upper: float = 0.99):
+    def clip_edges(
+        self, Data: np.ndarray, pct_lower: float = 0.001, pct_upper: float = 0.99
+    ):
         """WIll clipp the upper % and lower % off of the index
 
         Arguments:
-            Data {np.Array} -- the input array to clip
+            Data {np.ndarray} -- the input array to clip
 
         Keyword Arguments:
             pct_lower {float} -- the lower bound to clip (IE anything below lower_bound % is removed)
@@ -64,11 +65,11 @@ class Augmentation(Aug):
 
 
         """
-        if U.typeof(pct_lower) != "Float":
-            raise TypeError("pct_lower needs to be of type float")
+        if self.dt.is_float(pct_lower) is False:
+            raise_type_error(pct_lower, "pct_lower", self.dt.float)
 
-        if U.typeof(pct_upper) != "Float":
-            raise TypeError("pct_upper needs to be of type float")
+        if self.dt.is_float(pct_upper) is False:
+            raise_type_error(pct_upper, "pct_upper", self.dt.float)
 
         if pct_lower < 0.0 or pct_lower >= 1.00:
             raise ValueError("pct_lower needs to be at least 0.0 and less than 1.0")
@@ -79,7 +80,7 @@ class Augmentation(Aug):
         if pct_upper < pct_lower:
             pct_lower, pct_upper = pct_upper, pct_lower
 
-        data_length = Data.size
+        data_length = Data.size[0]
         Data_Clip = Data[int(pct_lower * data_length) : int(data_length * pct_upper)]
 
         return Data_Clip
